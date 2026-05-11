@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "An educator profile.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "createdAt": { "type": "number", "description": "Timestamp" }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "Child": {
+      "title": "Child",
+      "description": "A child whose transport card is being tracked.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "expirationDate": { "type": "number", "description": "Timestamp in ms" },
+        "notes": { "type": "string" },
+        "isLost": { "type": "boolean" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["name", "expirationDate", "ownerId", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles."
+    },
+    "/children/{childId}": {
+      "schema": { "$ref": "#/entities/Child" },
+      "description": "Children records managed by educators."
+    }
+  }
+}

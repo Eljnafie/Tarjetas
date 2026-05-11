@@ -1,0 +1,6 @@
+{
+  "name": "TrackPass",
+  "description": "App para educadores sociales para controlar la fecha de caducidad de las tarjetas de transporte de los chicos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
