@@ -1,12 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LayoutDashboard, Users, LogOut, Settings, Calendar, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Settings, Calendar, AlertCircle, WifiOff } from 'lucide-react';
 import { auth } from '../firebase/config';
 import { signOut } from 'firebase/auth';
 
 export const MainLayout: React.FC = () => {
   const { t } = useTranslation();
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -70,8 +84,14 @@ export const MainLayout: React.FC = () => {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 md:p-8 overflow-y-auto mb-16 md:mb-0">
-        <div className="max-w-5xl mx-auto flex flex-col gap-6">
+      <main className="flex-1 p-6 md:p-8 overflow-y-auto mb-16 md:mb-0 relative">
+        {isOffline && (
+          <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-xs font-semibold py-1.5 px-4 flex items-center justify-center gap-2 z-20">
+            <WifiOff size={14} />
+            <span>Sin conexión. Usando datos guardados (Offline)</span>
+          </div>
+        )}
+        <div className={`max-w-5xl mx-auto flex flex-col gap-6 ${isOffline ? 'mt-4' : ''}`}>
           <Outlet />
         </div>
       </main>
