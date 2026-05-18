@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, AlertCircle, Bell } from 'lucide-react';
+import { Plus, Search, AlertCircle, Bell, Users, Clock, AlertTriangle, HelpCircle } from 'lucide-react';
 import { Child } from '../types';
 import { subscribeToChildren } from '../services/db';
 import { useAuth } from '../auth/AuthProvider';
@@ -17,7 +17,7 @@ export const DashboardScreen: React.FC = () => {
   const [filter, setFilter] = useState<'all'|'expiring_soon'|'expired'>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
-  const { permission, requestPermission, sendNotification } = useNotifications();
+  const { permission, requestPermission, sendNotification, updateAppBadge } = useNotifications();
 
   useEffect(() => {
     if (!user) return;
@@ -27,7 +27,7 @@ export const DashboardScreen: React.FC = () => {
 
   const stats = useMemo(() => {
     const now = new Date();
-    let expiringSoon = 0; // <= 3 days
+    let expiringSoon = 0; // <= 7 days
     let expired = 0;
     let lost = 0;
     
@@ -38,7 +38,7 @@ export const DashboardScreen: React.FC = () => {
       const daysLeft = differenceInDays(new Date(c.expirationDate), now);
       if (daysLeft < 0 && !isSameDay(new Date(c.expirationDate), now)) {
         expired++;
-      } else if (daysLeft <= 3) {
+      } else if (daysLeft <= 7) {
         expiringSoon++;
       }
     });
@@ -46,16 +46,19 @@ export const DashboardScreen: React.FC = () => {
     return { total: children.length, expiringSoon, expired, lost };
   }, [children]);
 
-  // Handle Notifications
+  // Handle Notifications & Badge
   useEffect(() => {
-    if (permission === 'granted' && (stats.expiringSoon > 0 || stats.expired > 0)) {
+    const totalAlerts = stats.expiringSoon + stats.expired;
+    updateAppBadge(totalAlerts);
+
+    if (permission === 'granted' && totalAlerts > 0) {
       const lastNotified = localStorage.getItem('lastNotificationDate');
       const today = new Date().toDateString();
       
       if (lastNotified !== today) {
         const msgs = [];
         if (stats.expired > 0) msgs.push(`${stats.expired} vencida(s)`);
-        if (stats.expiringSoon > 0) msgs.push(`${stats.expiringSoon} a punto de vencer (menos de 3 días)`);
+        if (stats.expiringSoon > 0) msgs.push(`${stats.expiringSoon} a punto de vencer (menos de 7 días)`);
         
         sendNotification('Avisos de Tarjetas de Transporte', {
           body: `Tienes ${msgs.join(' y ')}. ¡Por favor revisa la app!`
@@ -63,7 +66,7 @@ export const DashboardScreen: React.FC = () => {
         localStorage.setItem('lastNotificationDate', today);
       }
     }
-  }, [stats, permission, sendNotification]);
+  }, [stats, permission, sendNotification, updateAppBadge]);
 
   const filteredChildren = useMemo(() => {
     const now = new Date();
@@ -89,6 +92,20 @@ export const DashboardScreen: React.FC = () => {
         </div>
         
         <div className="flex gap-4 items-center">
+          <button 
+            type="button" 
+            onClick={() => setFilter('expiring_soon')}
+            className="relative p-2.5 text-slate-500 hover:text-slate-800 transition-colors bg-white border border-slate-200 rounded-xl shadow-sm"
+            title="Ver notificaciones"
+          >
+            <Bell className="w-5 h-5" />
+            {(stats.expired + stats.expiringSoon) > 0 && (
+              <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full text-white text-[11px] font-bold flex items-center justify-center border-2 border-white shadow-sm animate-in zoom-in">
+                {stats.expired + stats.expiringSoon}
+              </span>
+            )}
+          </button>
+
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
             <input 
@@ -135,11 +152,11 @@ export const DashboardScreen: React.FC = () => {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
-        <StatCard title={t('total_kids')} value={stats.total} extraClass="" />
-        <StatCard title={t('expiring_soon')} value={stats.expiringSoon} extraClass="border-l-4 border-yellow-400" />
-        <StatCard title={t('expired')} value={stats.expired} extraClass="border-l-4 border-red-400" />
-        <StatCard title="Tarjetas perdidas" value={stats.lost} extraClass="border-l-4 border-slate-400" />
+      <div className="grid grid-cols-4 gap-2 sm:gap-3 bg-white p-2 sm:p-3 rounded-2xl shadow-sm border border-slate-100 mb-6">
+        <CompactStatCard title={t('total_kids')} value={stats.total} icon={<Users size={20} />} colorClass="bg-blue-50 text-blue-700" />
+        <CompactStatCard title={t('expiring_soon')} value={stats.expiringSoon} icon={<Clock size={20} />} colorClass="bg-amber-50 text-amber-700" />
+        <CompactStatCard title={t('expired')} value={stats.expired} icon={<AlertTriangle size={20} />} colorClass="bg-red-50 text-red-700" />
+        <CompactStatCard title="Tarjetas perdidas" value={stats.lost} icon={<HelpCircle size={20} />} colorClass="bg-slate-100 text-slate-700" />
       </div>
 
       {/* List and Filters */}
@@ -184,9 +201,10 @@ export const DashboardScreen: React.FC = () => {
   );
 };
 
-const StatCard = ({ title, value, extraClass = '' }: { title: string, value: number, extraClass?: string }) => (
-  <div className={`glass-card p-6 rounded-3xl bg-white ${extraClass}`}>
-    <p className="text-slate-500 text-sm font-medium">{title}</p>
-    <h3 className="text-4xl font-bold text-slate-800 mt-2">{value}</h3>
+const CompactStatCard = ({ title, value, icon, colorClass }: { title: string, value: number, icon: React.ReactNode, colorClass: string }) => (
+  <div className={`flex flex-col items-center justify-center p-3 rounded-xl ${colorClass}`} title={title}>
+    <div className="mb-1 opacity-80">{icon}</div>
+    <span className="text-xl font-bold">{value}</span>
+    <span className="text-[10px] sm:text-xs font-semibold text-center leading-tight mt-1 opacity-90">{title}</span>
   </div>
 );

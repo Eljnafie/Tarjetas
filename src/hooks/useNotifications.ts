@@ -43,5 +43,15 @@ export const useNotifications = () => {
     }
   }, [permission]);
 
-  return { permission, requestPermission, sendNotification };
+  const updateAppBadge = useCallback((count: number) => {
+    if ('setAppBadge' in navigator) {
+      if (count > 0) {
+        (navigator as any).setAppBadge(count).catch(console.error);
+      } else {
+        (navigator as any).clearAppBadge().catch(console.error);
+      }
+    }
+  }, []);
+
+  return { permission, requestPermission, sendNotification, updateAppBadge };
 };
