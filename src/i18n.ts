@@ -4,7 +4,7 @@ import { initReactI18next } from 'react-i18next';
 const resources = {
   es: {
     translation: {
-      "app_title": "TrackPass",
+      "app_title": "Mas Pins",
       "login_title": "Iniciar Sesión",
       "email": "Email",
       "password": "Contraseña",
@@ -44,7 +44,7 @@ const resources = {
   },
   ca: {
     translation: {
-      "app_title": "TrackPass",
+      "app_title": "Mas Pins",
       "login_title": "Iniciar Sessió",
       "email": "Correu electrònic",
       "password": "Contrasenya",

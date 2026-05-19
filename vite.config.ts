@@ -13,8 +13,8 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         manifest: {
-          name: 'TrackPass App',
-          short_name: 'TrackPass',
+          name: 'Mas Pins App',
+          short_name: 'Mas Pins',
           description: 'Gestión de tarjetas',
           theme_color: '#ffffff',
           icons: [

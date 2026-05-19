@@ -12,12 +12,17 @@ const PrivateRoute = () => {
   return user ? <MainLayout /> : <Navigate to="/login" replace />;
 };
 
+const LoginRoute = () => {
+  const { user } = useAuth();
+  return user ? <Navigate to="/" replace /> : <LoginScreen />;
+};
+
 const App: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
         <Routes>
-          <Route path="/login" element={<LoginScreen />} />
+          <Route path="/login" element={<LoginRoute />} />
           <Route element={<PrivateRoute />}>
             <Route path="/" element={<DashboardScreen />} />
             <Route path="/lost" element={<LostCardsScreen />} />

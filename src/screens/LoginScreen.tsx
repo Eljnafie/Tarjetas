@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
 import { auth, db } from '../firebase/config';
 import { setDoc, doc, getDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
+import { Capacitor } from '@capacitor/core';
 
 export const LoginScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -12,27 +13,54 @@ export const LoginScreen: React.FC = () => {
   const [error, setError] = useState('');
   const [isRegister, setIsRegister] = useState(false);
 
+  useEffect(() => {
+    const checkRedirect = async () => {
+      try {
+        setLoading(true);
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const userDocRef = doc(db, 'users', result.user.uid);
+          const docSnap = await getDoc(userDocRef);
+          if (!docSnap.exists()) {
+            await setDoc(userDocRef, {
+              email: result.user.email,
+              createdAt: Date.now()
+            });
+          }
+        }
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkRedirect();
+  }, []);
+
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
     try {
       const provider = new GoogleAuthProvider();
-      const userCreds = await signInWithPopup(auth, provider);
-      
-      // Check if user document exists, if not create it
-      const userDocRef = doc(db, 'users', userCreds.user.uid);
-      const docSnap = await getDoc(userDocRef);
-      if (!docSnap.exists()) {
-        await setDoc(userDocRef, {
-          email: userCreds.user.email,
-          createdAt: Date.now()
-        });
+      if (Capacitor.isNativePlatform()) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        const userCreds = await signInWithPopup(auth, provider);
+        
+        // Check if user document exists, if not create it
+        const userDocRef = doc(db, 'users', userCreds.user.uid);
+        const docSnap = await getDoc(userDocRef);
+        if (!docSnap.exists()) {
+          await setDoc(userDocRef, {
+            email: userCreds.user.email,
+            createdAt: Date.now()
+          });
+        }
       }
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') {
         setError(err.message);
       }
-    } finally {
       setLoading(false);
     }
   };

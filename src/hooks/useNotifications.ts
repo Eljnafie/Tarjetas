@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { Badge } from '@capawesome/capacitor-badge';
 
 export const useNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
@@ -96,8 +97,18 @@ export const useNotifications = () => {
     }
   }, [permission]);
 
-  const updateAppBadge = useCallback((count: number) => {
-    if ('setAppBadge' in navigator) {
+  const updateAppBadge = useCallback(async (count: number) => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        if (count > 0) {
+          await Badge.set({ count });
+        } else {
+          await Badge.clear();
+        }
+      } catch (e) {
+        console.error('Error setting app badge in Capacitor', e);
+      }
+    } else if ('setAppBadge' in navigator) {
       if (count > 0) {
         (navigator as any).setAppBadge(count).catch(console.error);
       } else {
