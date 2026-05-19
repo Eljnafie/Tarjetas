@@ -13,8 +13,8 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         manifest: {
-          name: 'Cards App',
-          short_name: 'Cards',
+          name: 'TrackPass App',
+          short_name: 'TrackPass',
           description: 'Gestión de tarjetas',
           theme_color: '#ffffff',
           icons: [
