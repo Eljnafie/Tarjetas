@@ -1,15 +1,51 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 export const useNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
   useEffect(() => {
-    if ('Notification' in window) {
-      setPermission(Notification.permission);
-    }
+    const checkPermission = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const status = await LocalNotifications.checkPermissions();
+          setPermission(status.display === 'granted' ? 'granted' : (status.display === 'denied' ? 'denied' : 'default'));
+        } catch (e) {
+          console.error(e);
+        }
+      } else if ('Notification' in window) {
+        setPermission(Notification.permission);
+      }
+    };
+    checkPermission();
   }, []);
 
   const requestPermission = async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const status = await LocalNotifications.requestPermissions();
+        const granted = status.display === 'granted';
+        setPermission(granted ? 'granted' : 'denied');
+        if (granted) {
+          await LocalNotifications.schedule({
+            notifications: [
+              {
+                title: '¡Notificaciones activadas!',
+                body: 'Te avisaremos cuando haya tarjetas a punto de vencer.',
+                id: Math.floor(Math.random() * 1000000),
+                schedule: { at: new Date(Date.now() + 1000) }
+              }
+            ]
+          });
+        }
+        return granted;
+      } catch (error) {
+        console.error('Error al solicitar permiso de notificaciones (Capacitor):', error);
+        return false;
+      }
+    }
+
     if (!('Notification' in window)) {
       alert('Tu dispositivo/navegador no soporta notificaciones web.');
       return false;
@@ -30,8 +66,25 @@ export const useNotifications = () => {
     }
   };
 
-  const sendNotification = useCallback((title: string, options?: NotificationOptions) => {
-    if (permission === 'granted' && 'Notification' in window) {
+  const sendNotification = useCallback(async (title: string, options?: NotificationOptions) => {
+    if (Capacitor.isNativePlatform()) {
+      if (permission === 'granted') {
+        try {
+          await LocalNotifications.schedule({
+            notifications: [
+              {
+                title,
+                body: options?.body || '',
+                id: Math.floor(Math.random() * 1000000),
+                schedule: { at: new Date(Date.now() + 500) }
+              }
+            ]
+          });
+        } catch (e) {
+          console.error('Error scheduling local notification', e);
+        }
+      }
+    } else if (permission === 'granted' && 'Notification' in window) {
       try {
         new Notification(title, {
           ...options,
