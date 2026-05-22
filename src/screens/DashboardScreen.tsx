@@ -17,7 +17,7 @@ export const DashboardScreen: React.FC = () => {
   const [filter, setFilter] = useState<'all'|'expiring_soon'|'expired'>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
-  const { permission, requestPermission, sendNotification, updateAppBadge } = useNotifications();
+  const { permission, requestPermission, sendNotification, updateAppBadge, scheduleCardExpirations } = useNotifications();
 
   useEffect(() => {
     if (!user) return;
@@ -51,22 +51,28 @@ export const DashboardScreen: React.FC = () => {
     const totalAlerts = stats.expiringSoon + stats.expired;
     updateAppBadge(totalAlerts);
 
-    if (permission === 'granted' && totalAlerts > 0) {
-      const lastNotified = localStorage.getItem('lastNotificationDate');
-      const today = new Date().toDateString();
-      
-      if (lastNotified !== today) {
-        const msgs = [];
-        if (stats.expired > 0) msgs.push(`${stats.expired} vencida(s)`);
-        if (stats.expiringSoon > 0) msgs.push(`${stats.expiringSoon} a punto de vencer (menos de 7 días)`);
+    if (permission === 'granted') {
+      // Schedule future remote alerts for native
+      scheduleCardExpirations(children);
+
+      // Web Fallback: Just trigger a one-time today notification if we haven't
+      if (totalAlerts > 0) {
+        const lastNotified = localStorage.getItem('lastNotificationDate');
+        const today = new Date().toDateString();
         
-        sendNotification('Avisos de Tarjetas de Transporte', {
-          body: `Tienes ${msgs.join(' y ')}. ¡Por favor revisa la app!`
-        });
-        localStorage.setItem('lastNotificationDate', today);
+        if (lastNotified !== today) {
+          const msgs = [];
+          if (stats.expired > 0) msgs.push(`${stats.expired} vencida(s)`);
+          if (stats.expiringSoon > 0) msgs.push(`${stats.expiringSoon} a punto de vencer (menos de 7 días)`);
+          
+          sendNotification('Avisos de Tarjetas de Transporte', {
+            body: `Tienes ${msgs.join(' y ')}. ¡Por favor revisa la app!`
+          });
+          localStorage.setItem('lastNotificationDate', today);
+        }
       }
     }
-  }, [stats, permission, sendNotification, updateAppBadge]);
+  }, [children, stats, permission, sendNotification, updateAppBadge, scheduleCardExpirations]);
 
   const filteredChildren = useMemo(() => {
     const now = new Date();

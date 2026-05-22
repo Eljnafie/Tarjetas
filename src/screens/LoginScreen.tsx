@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
 import { auth, db } from '../firebase/config';
 import { setDoc, doc, getDoc } from 'firebase/firestore';
@@ -7,6 +8,7 @@ import { Capacitor } from '@capacitor/core';
 
 export const LoginScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,6 +17,7 @@ export const LoginScreen: React.FC = () => {
 
   useEffect(() => {
     const checkRedirect = async () => {
+      if (Capacitor.isNativePlatform()) return; // Not supported properly on native capacitor without plugins
       try {
         setLoading(true);
         const result = await getRedirectResult(auth);
@@ -27,9 +30,10 @@ export const LoginScreen: React.FC = () => {
               createdAt: Date.now()
             });
           }
+          navigate('/', { replace: true });
         }
       } catch (err: any) {
-        setError(err.message);
+        console.error("Redirect result error", err);
       } finally {
         setLoading(false);
       }
@@ -38,25 +42,16 @@ export const LoginScreen: React.FC = () => {
   }, []);
 
   const handleGoogleLogin = async () => {
+    if (Capacitor.isNativePlatform()) {
+      setError('El inicio de sesión con Google en la app nativa requiere instalación de plugins adicionales. Por favor usa email/contraseña.');
+      return;
+    }
+    
     setLoading(true);
     setError('');
     try {
       const provider = new GoogleAuthProvider();
-      if (Capacitor.isNativePlatform()) {
-        await signInWithRedirect(auth, provider);
-      } else {
-        const userCreds = await signInWithPopup(auth, provider);
-        
-        // Check if user document exists, if not create it
-        const userDocRef = doc(db, 'users', userCreds.user.uid);
-        const docSnap = await getDoc(userDocRef);
-        if (!docSnap.exists()) {
-          await setDoc(userDocRef, {
-            email: userCreds.user.email,
-            createdAt: Date.now()
-          });
-        }
-      }
+      await signInWithRedirect(auth, provider);
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') {
         setError(err.message);
@@ -76,8 +71,10 @@ export const LoginScreen: React.FC = () => {
           email: userCreds.user.email,
           createdAt: Date.now()
         });
+        navigate('/', { replace: true });
       } else {
         await signInWithEmailAndPassword(auth, email, password);
+        navigate('/', { replace: true });
       }
     } catch (err: any) {
       if (err.code === 'auth/operation-not-allowed') {
@@ -93,10 +90,13 @@ export const LoginScreen: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{t('app_title')}</h1>
+        <div className="flex justify-between items-start mb-8">
+          <div className="flex items-center gap-3">
+            <img src="/icon.png" alt="Mas Pins Logo" className="w-12 h-12 rounded-xl shadow-sm" />
+            <h1 className="text-3xl font-bold text-gray-900">{t('app_title')}</h1>
+          </div>
           <select 
-            className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 mt-2"
             value={i18n.language}
             onChange={(e) => i18n.changeLanguage(e.target.value)}
           >

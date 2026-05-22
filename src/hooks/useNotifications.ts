@@ -97,8 +97,58 @@ export const useNotifications = () => {
     }
   }, [permission]);
 
+  const scheduleCardExpirations = useCallback(async (children: any[]) => {
+    if (!Capacitor.isNativePlatform() || permission !== 'granted') return;
+    
+    try {
+      // Fetch and cancel pending notifications to start fresh and avoid duplicates
+      const pending = await LocalNotifications.getPending();
+      if (pending.notifications.length > 0) {
+        await LocalNotifications.cancel(pending);
+      }
+
+      const notifications: import('@capacitor/local-notifications').LocalNotificationSchema[] = [];
+      const now = Date.now();
+      
+      children.forEach(c => {
+        if (c.isLost) return;
+        const expDate = new Date(c.expirationDate);
+        expDate.setHours(9, 0, 0, 0); // Notify at 9 AM
+        
+        // 7 days before
+        const sevenDaysBefore = new Date(expDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+        if (sevenDaysBefore.getTime() > now) {
+          notifications.push({
+            id: Math.floor(Math.random() * 2000000000), // Int32
+            title: 'Tarjeta por caducar',
+            body: `La tarjeta de ${c.name} caducará en 7 días (${expDate.toLocaleDateString()}). ¡Entra a la app para gestionarla!`,
+            schedule: { at: sevenDaysBefore, allowWhileIdle: true }
+          });
+        }
+        
+        // Expiration day
+        if (expDate.getTime() > now) {
+          notifications.push({
+            id: Math.floor(Math.random() * 2000000000),
+            title: 'Tarjeta caducada',
+            body: `La tarjeta de ${c.name} caduca HOY y necesita ser renovada.`,
+            schedule: { at: expDate, allowWhileIdle: true }
+          });
+        }
+      });
+      
+      if (notifications.length > 0) {
+        // Schedule in batches if required, usually up to ~50 is fine
+        await LocalNotifications.schedule({ notifications: notifications.slice(0, 50) });
+      }
+    } catch (e) {
+      console.error('Error scheduling expirations:', e);
+    }
+  }, [permission]);
+
   const updateAppBadge = useCallback(async (count: number) => {
     if (Capacitor.isNativePlatform()) {
+
       try {
         if (count > 0) {
           await Badge.set({ count });
@@ -117,5 +167,5 @@ export const useNotifications = () => {
     }
   }, []);
 
-  return { permission, requestPermission, sendNotification, updateAppBadge };
+  return { permission, requestPermission, sendNotification, updateAppBadge, scheduleCardExpirations };
 };
